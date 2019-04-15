@@ -12,3 +12,7 @@ This is a simple python script that monitors cpu usage, and displays desktop not
   - note version 1.8.0 is necessary to support actions and timeout
   - future versions will hopefully use a python library for desktop notifications (or at least a more supportive notifier)
   
+## Usage
+
+`sudo python process_listener.py <desired system cpu usage: limit >= 0> <desired single process cpu usage: limit >= 0>`
+  
