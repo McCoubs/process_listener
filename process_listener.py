@@ -3,21 +3,40 @@ import subprocess
 import ast
 import os
 import sys
+import threading
+
+PIDS = set()
 
 
-# notification helper
-def notify(title, subtitle, message):
-    # generate the required flags
-    m = '-message {!r}'.format(message)
-    t = '-title {!r}'.format(title)
-    st = '-subtitle {!r}'.format(subtitle)
-    a = '-actions {!r}'.format('Kill')
-    c = '-closeLabel {!r}'.format('Ignore')
-    ext = '-timeout 10 -json'
-    # generate notification and return the response object
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    raw_output = subprocess.check_output('{}/terminal-notifier {}'.format(dir_path, ' '.join([m, t, st, a, c, ext])), shell=True)
-    return ast.literal_eval(raw_output.decode('utf-8'))
+class NotifyThread(threading.Thread):
+    def __init__(self, process, title, subtitle, message):
+        super(NotifyThread, self).__init__()
+        self.process = process
+        self.title = title
+        self.subtitle = subtitle
+        self.message = message
+        PIDS.add(self.process.info['pid'])
+
+    def run(self):
+        # generate the required flags
+        m = '-message {!r}'.format(self.message)
+        t = '-title {!r}'.format(self.title)
+        st = '-subtitle {!r}'.format(self.subtitle)
+        a = '-actions {!r}'.format('Kill')
+        c = '-closeLabel {!r}'.format('Ignore')
+        ext = '-timeout 10 -json'
+        # generate notification and return the response object
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        raw_output = subprocess.check_output(
+            '{}/terminal-notifier {}'.format(dir_path, ' '.join([m, t, st, a, c, ext])), shell=True)
+        response_dict = ast.literal_eval(raw_output.decode('utf-8'))
+        # process response and kill if necessary
+        if response_dict.get('activationValue', '') == 'Kill':
+            try:
+                self.process.terminate()
+                PIDS.remove(self.process.info['pid'])
+            except psutil.NoSuchProcess as err:
+                print('Error:', err.msg, '--- while trying to terminate')
 
 
 # runner logic
@@ -48,12 +67,9 @@ if __name__ == '__main__':
         # if cpu usage is more than desired percent of system
         if cpu_usage >= (cpu_count * system_usage_limit):
             # check all currently running processes
-            for proc in psutil.process_iter(attrs=['name', 'cpu_percent']):
+            for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent']):
                 # if large process (defined by user), notify user, kill if responded
-                if proc.info['cpu_percent'] >= single_usage_limit:
-                    response = notify('Process Listener', '', proc.info['name'] + ' at CPU USAGE: ' + str(proc.info['cpu_percent']) + '%')
-                    if response.get('activationValue', '') == 'Kill':
-                        try:
-                            proc.terminate()
-                        except psutil.NoSuchProcess as e:
-                            print('Error:', e.msg, '--- while trying to terminate')
+                if proc.info['pid'] not in PIDS and proc.info['cpu_percent'] >= single_usage_limit:
+                    notify = NotifyThread(proc, 'Process Listener', '',
+                                          proc.info['name'] + ' at CPU USAGE: ' + str(proc.info['cpu_percent']) + '%')
+                    notify.start()
