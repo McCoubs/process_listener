@@ -55,7 +55,13 @@ class NotifyThreadHandler:
             dir_path = os.path.dirname(os.path.realpath(__file__))
             raw_output = subprocess.check_output(
                 '{}/terminal-notifier {}'.format(dir_path, ' '.join([m, t, st, a, c, ext])), shell=True)
-            response_dict = ast.literal_eval(raw_output.decode('utf-8'))
+            # try parsing output, end early on error
+            try:
+                response_dict = ast.literal_eval(raw_output.decode('utf-8'))
+            except SyntaxError as err:
+                print(f'Error while trying to parse response from notification pid# {self.process.pid}')
+                self.callback(*self.callback_args)
+                return
 
             # process response and kill if necessary
             if response_dict.get('activationValue', '') == 'Kill':
