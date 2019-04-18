@@ -107,7 +107,6 @@ if __name__ == '__main__':
 
         # if memory usage is more than desired percent of system
         elif mem_usage >= mem_usage_limit:
-            print(f'{mem_usage} >= {mem_usage_limit}')
             # check all currently running processes
             for proc in psutil.process_iter(attrs=['pid', 'name']):
                 mem_percent = proc.memory_percent()
