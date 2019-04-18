@@ -89,11 +89,11 @@ if __name__ == '__main__':
     print('success: started listening to memory and CPU usage...')
     while True:
         # get current usage
-        cpu_usage = sum(psutil.cpu_percent(interval=1, percpu=True))
+        cpu_usage = sum(psutil.cpu_percent(interval=1, percpu=True)) / cpu_count
         mem_usage = psutil.virtual_memory().percent
 
         # if cpu usage is more than desired percent of system
-        if cpu_usage >= (cpu_count * cpu_usage_limit):
+        if cpu_usage >= cpu_usage_limit:
             # check all currently running processes
             for proc in psutil.process_iter(attrs=['pid', 'name', 'cpu_percent']):
                 cpu_percent = proc.info['cpu_percent']
@@ -102,8 +102,8 @@ if __name__ == '__main__':
 
                 # notify user of large process, kill if responded
                 if cpu_percent >= 40:
-                    notifier_handler.generate_thread(proc, 'Process Listener', proc.info['name'],
-                                                     f'CPU usage at: {str(cpu_percent)}%')
+                    notifier_handler.generate_thread(proc, 'Process Listener', f"Process name: {proc.info['name']}",
+                                                     f'CPU usage at: {str(round(cpu_percent, 2))}%')
 
         # if memory usage is more than desired percent of system
         elif mem_usage >= mem_usage_limit:
@@ -115,5 +115,5 @@ if __name__ == '__main__':
 
                 # notify user of large process, kill if responded
                 if mem_percent >= 20:
-                    notifier_handler.generate_thread(proc, 'Process Listener', proc.info['name'],
-                                                     f'RAM usage at: {str(mem_percent)}%')
+                    notifier_handler.generate_thread(proc, 'Process Listener', f"Process name: {proc.info['name']}",
+                                                     f'RAM usage at: {str(round(mem_percent, 2))}%')
